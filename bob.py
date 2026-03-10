@@ -27,7 +27,7 @@ def iniciar_bob():
             # Se ele nao reconhecer o comando ele da uma resposta padrao
             print('Bob: Pode repetir chefe?')
 
-    # Esse comando e oque faz para o Bob entender e processar
-    if __name__ == '__main__':
-        iniciar_bob
+# Esse comando e oque faz para o Bob entender e processar
+if __name__ == '__main__':
+    iniciar_bob
 
