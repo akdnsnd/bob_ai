@@ -4,7 +4,7 @@ import google.generativeai as genai
 from datetime import datetime
 
 # Configuracao do CEREBRO
-CHAVE_API ="CHAVE AQUI"
+CHAVE_API ="AIzaSyB4HmjJaushSsgwnRutjqhIOGJ8ICrT4UQ"
 genai.configure (api_key=CHAVE_API)
 
 # Configuracao do modelo (gemini1.5 flash
