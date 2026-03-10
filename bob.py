@@ -62,6 +62,7 @@ def iniciar_bob():
         if "ola" in comando or "oi" in comando:
             print ("Bob: Eae tudo bem?")
 
+
         elif "seu nome" in comando:
             print ("Bob: Eu sou o Bob e estou em treinamento")
 
@@ -70,7 +71,7 @@ def iniciar_bob():
             agora = datetime.now()
             data_formatada = agora.strftime("%d/%m/%Y")
             print (f"hoje e dia {data_formatada}.")
-            
+
 
         else:
             # Se ele nao reconhecer o comando ele da uma resposta padrao
