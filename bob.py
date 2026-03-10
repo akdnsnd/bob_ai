@@ -46,7 +46,7 @@ def iniciar_bob():
             try:
                 # O Bob envia sua pergunta para o Gemini
                 # Adicionamos uma instrucao para elesempre agir como o Bob
-                prompt_personalidade = f"(Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Visual, Lúdico, Gestos, Expressões, Atitude Fun-loving, Brincadeiras e Espontaneidade): {comando}"
+                prompt_personalidade = f"(Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Lúdico, Atitude Fun-loving, Brincadeiras e Espontaneidade): {comando}"
                 # Usamos o chat.send_message em vez de model.generate_content
                 # Isso faz o google guarda o historico da conversa nesta sessao
                 resposta = chat.send_message(prompt_personalidade)
