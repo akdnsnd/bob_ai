@@ -1,13 +1,13 @@
-# --- BOB AI v2.5 ---
+# --- BOB AI v3.0 ---
 # Agora o Bob ganha Vida usando o Gemini
 import google.generativeai as genai
 from datetime import datetime
 
 # Configuracao do CEREBRO
-CHAVE_API ="AIzaSyB4HmjJaushSsgwnRutjqhI0GJ8ICrT4UQ"
-genai.configure (api_key=CHAVE_API)
+CHAVE_API = "AIzaSyB4HmjJaushSsgwnRutjqhI0GJ8ICrT4UQ"
+genai.configure(api_key=CHAVE_API)
 
-# Configuracao do modelo (gemini1.5 flash
+# Configuracao do modelo (gemini1.5 flash)
 model = genai.GenerativeModel ('gemini-1.5-flash')
 
 def iniciar_bob():
@@ -51,9 +51,6 @@ def iniciar_bob():
         elif "seu nome" in comando:
             print ("Bob: Eu sou o Bob e estou em treinamento")
 
-        
-
-        
 
         elif "data" in comando:
             agora = datetime.now()
