@@ -1,21 +1,30 @@
 # --- BOB AI ---
 # Agora o Bob tem uma base, vida, memoria usando o Gemini 3
 import google.generativeai as genai
+import os
 from datetime import datetime
 
+#CONFIFURACAO DE SEGURANCA
+# O bob agora buscar a chave no 'cofre' do sistema, nao mais no texto do codigo
+
 # Configuracao do CEREBRO
-#CHAVE_API = "AIzaSyB4HmjJaushSsgwnRutjqhI0GJ8ICrT4UQ"
-CHAVE_API = "AIzaSyD2LjWxYrKzO0M0MzTc7yq0Ui2YwZTGySU"
-genai.configure(api_key=CHAVE_API)
+# Chave: AIzaSyCZS5KECaJIYIZVlabEAxgHgxO7qh2fDgQ
+CHAVE_API = os.getenv("GEMINI_KEY")
+
+
+if not CHAVE_API:
+    print("ERRO: Nao encontrei a chave no sistema")
+else:
+    genai.configure(api_key=CHAVE_API)
 
 # Configuracao do modelo (gemini1.5 flash)
 model = genai.GenerativeModel ('models/gemini-3-flash-preview')
 
 # Esse trecho lista os modelos que sua chave permite usar
-#print ("Modelos Disponiveis:")
-#for m in genai.list_models():
-#    if 'generateContent' in m.supported_generation_methods:
-#        print(f"-  {m.name}")
+print ("Modelos Disponiveis:")
+for m in genai.list_models():
+    if 'generateContent' in m.supported_generation_methods:
+        print(f"-  {m.name}")
 
 def iniciar_bob():
     # Criamos uma sessao de chat vazia para manter o historico (memoria)
@@ -46,7 +55,7 @@ def iniciar_bob():
             try:
                 # O Bob envia sua pergunta para o Gemini
                 # Adicionamos uma instrucao para elesempre agir como o Bob
-                prompt_personalidade = f"(Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Elegância e Refinamento e Voz e Flow Distintos e Autenticidade e Originalidade e Ambição e Foco Profissional, estilo MDChefe): {comando}"
+                prompt_personalidade = f"(Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Elegância e Refinamento e Voz e Flow Distintos e Autenticidade e Originalidade e Ambição e Foco Profissional): {comando}"
                 # Usamos o chat.send_message em vez de model.generate_content
                 # Isso faz o google guarda o historico da conversa nesta sessao
                 resposta = chat.send_message(prompt_personalidade)
