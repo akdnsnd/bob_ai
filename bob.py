@@ -1,5 +1,5 @@
-# --- BOB AI v3.0 ---
-# Agora o Bob ganha Vida usando o Gemini
+# --- BOB AI ---
+# Agora o Bob tem uma base, vida, memoria usando o Gemini 3
 import google.generativeai as genai
 from datetime import datetime
 
@@ -11,14 +11,19 @@ genai.configure(api_key=CHAVE_API)
 # Configuracao do modelo (gemini1.5 flash)
 model = genai.GenerativeModel ('models/gemini-3-flash-preview')
 
-print ("Modelos Disponiveis:")
-for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
-        print(f"-  {m.name}")
+# Esse trecho lista os modelos que sua chave permite usar
+#print ("Modelos Disponiveis:")
+#for m in genai.list_models():
+#    if 'generateContent' in m.supported_generation_methods:
+#        print(f"-  {m.name}")
 
 def iniciar_bob():
+    # Criamos uma sessao de chat vazia para manter o historico (memoria)
+    # o 'histoy=[]' indica que a conversa esta comecando do zero
+    chat = model.start_chat(history=[])
+
     # Esta menssagem aparece somente quando o Bob e chamado
-    print ("Conectando...")
+    print ("Sistema Neurais v3.0 Online...")
     print ("Salve chefe, o que manda??")
     # A variavel 'comando'  guarda o comando que voce digita
     # O .lower() deixa as letras minusculas 
@@ -36,11 +41,12 @@ def iniciar_bob():
             break
 
         # Comando de AI (Para tudo que ele nao souber responder localmente)
+        #Bob com Memoria
         else:
             try:
                 # O Bob envia sua pergunta para o Gemini
                 # Adicionamos uma instrucao para elesempre agir como o Bob
-                prompt = f"Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Visual, Lúdico, Gestos, Expressões, Atitude Fun-loving, Brincadeiras e Espontaneidade: {comando}"
+                prompt_personalidade = f"(Voce é o Bob, um assistente parceiro estilo Jarvis. Responda de forma Visual, Lúdico, Gestos, Expressões, Atitude Fun-loving, Brincadeiras e Espontaneidade): {comando}"
                 resposta = model.generate_content(prompt)
 
                 print (f"Bob: {resposta.text}")
