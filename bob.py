@@ -8,7 +8,6 @@ from datetime import datetime
 # O bob agora buscar a chave no 'cofre' do sistema, nao mais no texto do codigo
 
 # Configuracao do CEREBRO
-# Chave: AIzaSyCZS5KECaJIYIZVlabEAxgHgxO7qh2fDgQ
 CHAVE_API = os.getenv("GEMINI_KEY")
 
 
