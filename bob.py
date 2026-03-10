@@ -4,11 +4,17 @@ import google.generativeai as genai
 from datetime import datetime
 
 # Configuracao do CEREBRO
-CHAVE_API = "AIzaSyB4HmjJaushSsgwnRutjqhI0GJ8ICrT4UQ"
+#CHAVE_API = "AIzaSyB4HmjJaushSsgwnRutjqhI0GJ8ICrT4UQ"
+CHAVE_API = "AIzaSyD2LjWxYrKzO0M0MzTc7yq0Ui2YwZTGySU"
 genai.configure(api_key=CHAVE_API)
 
 # Configuracao do modelo (gemini1.5 flash)
-model = genai.GenerativeModel ('gemini-1.5-flash')
+model = genai.GenerativeModel ('models/gemini-3-flash-preview')
+
+print ("Modelos Disponiveis:")
+for m in genai.list_models():
+    if 'generateContent' in m.supported_generation_methods:
+        print(f"-  {m.name}")
 
 def iniciar_bob():
     # Esta menssagem aparece somente quando o Bob e chamado
