@@ -1,4 +1,5 @@
-
+# --- Bob AI v6.0 ---
+# Novo modelo que cominicação, apenas por voz
 
 import os
 import requests # A nossa nova forma de falar com o Gemini
