@@ -1,72 +1,146 @@
-# --- BOB AI v4.0 ---
-# Agora com Audição (Microfone) e Inteligência Pura
+# --- Bob AI v5.0 ---
+# Agora com cara nova e ativaçao por voz
 
 import google.generativeai as genai
 import os
-import gradio as gr
+import speech_recognition as sr
+import pygame
 from gtts import gTTS
 from datetime import datetime
+import threading
+import time
 
-# CONFIGURAÇÃO DE SEGURANÇA
+# --- 1. CONFIGURAÇÃO DA INTELIGÊNCIA ---
 CHAVE_API = os.getenv("GEMINI_KEY")
-if CHAVE_API:
-    genai.configure(api_key=CHAVE_API)
-
+genai.configure(api_key=CHAVE_API)
 model = genai.GenerativeModel('gemini-3-flash-preview')
 chat = model.start_chat(history=[])
 
+# --- 2. CONFIGURAÇÕES VISUAIS ---
+LARGURA, ALTURA = 400, 400
+PRETO = (15, 15, 15)
+AZUL_JARVIS = (0, 200, 255)
+VERMELHO_ALERTA = (255, 50, 50)
+
+estado_bob = "IDLE" # IDLE, OUVINDO, PROCESSANDO, FALANDO
+
+# --- 3. FUNÇÕES DE VOZ E LÓGICA ---
+
 def falar(texto):
-    """Gera o áudio da resposta"""
-    tts = gTTS(text=texto, lang='pt', slow=False)
-    arquivo_audio = "resposta_bob.mp3"
-    tts.save(arquivo_audio)
-    return arquivo_audio
-
-def processar_tudo(audio_path, texto_input):
-    """Lida com entrada de áudio OU texto e retorna resposta + voz"""
-    
-    # Se houver áudio, enviamos o arquivo para o Gemini transcrever e responder
-    # Se não, usamos o texto digitado
-    if audio_path:
-        # O Gemini 3 consegue "ouvir" arquivos de áudio diretamente!
-        audio_file = genai.upload_file(path=audio_path)
-        prompt = [
-            f"Contexto: Hoje é {datetime.now().strftime('%d/%m/%Y %H:%M')}. Você é o Bob, assistente estilo Jarvis.",
-            "O áudio anexo é o meu comando. Responda de forma curta e direta.",
-            audio_file
-        ]
-    else:
-        prompt = f"Contexto: {datetime.now().strftime('%d/%m/%Y %H:%M')}. Você é o Bob. Responda: {texto_input}"
-
+    """Gera o áudio e anima a boca"""
+    global estado_bob
     try:
-        response = chat.send_message(prompt)
-        resposta_texto = response.text
-    except Exception as e:
-        resposta_texto = "Senhor, tive um erro nos meus sensores auditivos."
-
-    audio_res = falar(resposta_texto)
-    return resposta_texto, audio_res
-
-# --- INTERFACE GRADIO ---
-with gr.Blocks(title="BOB AI - Protocolo de Voz") as demo:
-    gr.Markdown("# 🎙️ BOB AI - Interface de Voz Ativa")
-    
-    with gr.Row():
-        with gr.Column():
-            output_text = gr.Textbox(label="Bob diz:")
-            audio_output = gr.Audio(label="Voz do Bob", autoplay=True)
+        tts = gTTS(text=texto, lang='pt', slow=False)
+        arquivo = "vozinha.mp3"
+        tts.save(arquivo)
         
-        with gr.Column():
-            input_audio = gr.Audio(label="Fale com o Bob (Clique no microfone)", sources=["microphone"], type="filepath")
-            input_text = gr.Textbox(label="Ou digite aqui:")
-            btn = gr.Button("Enviar ao Bob")
+        pygame.mixer.music.load(arquivo)
+        estado_bob = "FALANDO"
+        pygame.mixer.music.play()
+        
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.1)
+        estado_bob = "IDLE"
+    except Exception as e:
+        print(f"Erro no áudio: {e}")
+        estado_bob = "IDLE"
 
-    # Ação do botão
-    btn.click(
-        fn=processar_tudo, 
-        inputs=[input_audio, input_text], 
-        outputs=[output_text, audio_output]
-    )
+def motor_da_mente():
+    """O cérebro que ouve e pensa"""
+    global estado_bob
+    reconhecedor = sr.Recognizer()
+    
+    with sr.Microphone() as source:
+        reconhecedor.adjust_for_ambient_noise(source, duration=1)
+        print("Bob Inicializado. Aguardando comando...")
+        
+        while True:
+            try:
+                # 1. Escuta a Wake Word
+                audio = reconhecedor.listen(source, phrase_time_limit=3)
+                fala = reconhecedor.recognize_google(audio, language='pt-BR').lower()
+                
+                if "bob" in fala:
+                    estado_bob = "OUVINDO"
+                    falar("Sim, senhor?")
+                    
+                    # 2. Escuta o comando real
+                    print("Ouvindo comando...")
+                    audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
+                    texto_comando = reconhecedor.recognize_google(audio_comando, language='pt-BR')
+                    
+                    # 3. Processa no Gemini
+                    estado_bob = "PROCESSANDO"
+                    prompt = f"Contexto: {datetime.now()}. Você é o Bob/Jarvis. Responda curto: {texto_comando}"
+                    response = chat.send_message(prompt)
+                    
+                    # 4. Responde
+                    falar(response.text)
+                    
+            except Exception:
+                estado_bob = "IDLE"
+                continue
 
-if __name__ == "__main__":
-    demo.launch(debug=True)
+# --- 4. INTERFACE GRÁFICA (ROSTO) ---
+
+def desenhar_bob(screen):
+    screen.fill(PRETO)
+    centro = (LARGURA // 2, ALTURA // 2)
+    
+    # Pulsação suave do círculo externo
+    raio_base = 140
+    if estado_bob == "PROCESSANDO":
+        raio_base += int(5 * (time.time() % 1 * 2)) # Pulsa rápido
+        cor = VERMELHO_ALERTA
+    elif estado_bob == "OUVINDO":
+        cor = (255, 255, 255) # Branco quando ouve
+    else:
+        cor = AZUL_JARVIS
+
+    # Desenho da "Cabeça"
+    pygame.draw.circle(screen, cor, centro, raio_base, 2)
+    pygame.draw.circle(screen, cor, centro, raio_base - 10, 1)
+
+    # Olhos
+    olho_y = centro[1] - 30
+    if estado_bob == "OUVINDO":
+        # Olhos arregalados
+        pygame.draw.circle(screen, cor, (centro[0]-50, olho_y), 12)
+        pygame.draw.circle(screen, cor, (centro[0]+50, olho_y), 12)
+    else:
+        # Olhos normais (traços tecnológicos)
+        pygame.draw.rect(screen, cor, (centro[0]-60, olho_y, 20, 5))
+        pygame.draw.rect(screen, cor, (centro[0]+40, olho_y, 20, 5))
+
+    # Boca Animada
+    if estado_bob == "FALANDO":
+        # Altura da boca varia com o tempo para simular fala
+        altura_boca = int(10 + abs(30 * (time.time() % 0.4 - 0.2) * 5))
+        pygame.draw.ellipse(screen, cor, (centro[0]-30, centro[1]+40, 60, altura_boca), 2)
+    else:
+        # Linha reta (silêncio)
+        pygame.draw.line(screen, cor, (centro[0]-20, centro[1]+60), (centro[0]+20, centro[1]+60), 2)
+
+# --- 5. EXECUÇÃO ---
+
+pygame.init()
+pygame.mixer.init()
+tela = pygame.display.set_mode((LARGURA, ALTURA))
+pygame.display.set_caption("BOB OS v5.0")
+
+# Lançar a mente do Bob em paralelo
+threading.Thread(target=motor_da_mente, daemon=True).start()
+
+rodando = True
+relogio = pygame.time.Clock()
+
+while rodando:
+    for evento in pygame.event.get():
+        if evento.type == pygame.QUIT:
+            rodando = False
+
+    desenhar_bob(tela)
+    pygame.display.flip()
+    relogio.tick(60) # 60 FPS para animação lisa
+
+pygame.quit()
