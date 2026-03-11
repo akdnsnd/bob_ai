@@ -1,90 +1,77 @@
-# --- BOB AI ---
-# Agora o Bob tem uma base, vida, memoria usando o Gemini 3
+# --- BOB AI v3.1 ---
+# Totalmente integrado à IA (Sem comandos locais)
+
 import google.generativeai as genai
 import os
+import gradio as gr
+from gtts import gTTS
 from datetime import datetime
 
-#CONFIFURACAO DE SEGURANCA
-# O bob agora buscar a chave no 'cofre' do sistema, nao mais no texto do codigo
-
-# Configuracao do CEREBRO
+# CONFIGURAÇÃO DE SEGURANÇA
 CHAVE_API = os.getenv("GEMINI_KEY")
-
-
-if not CHAVE_API:
-    print("ERRO: Nao encontrei a chave no sistema")
-else:
+if CHAVE_API:
     genai.configure(api_key=CHAVE_API)
 
-# Configuracao do modelo (gemini1.5 flash)
-model = genai.GenerativeModel ('models/gemini-3-flash-preview')
+# Inicializando o modelo
+model = genai.GenerativeModel('gemini-3-flash-preview')
+chat = model.start_chat(history=[])
 
-# Esse trecho lista os modelos que sua chave permite usar
-print ("Modelos Disponiveis:")
-for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
-        print(f"-  {m.name}")
+def falar(texto):
+    """Gera o arquivo de áudio da resposta"""
+    tts = gTTS(text=texto, lang='pt', slow=False)
+    arquivo_audio = "resposta_bob.mp3"
+    tts.save(arquivo_audio)
+    return arquivo_audio
 
-def iniciar_bob():
-    # Criamos uma sessao de chat vazia para manter o historico (memoria)
-    # o 'histoy=[]' indica que a conversa esta comecando do zero
-    chat = model.start_chat(history=[])
+def responder_bob(mensagem, historico):
+    """Envia tudo para a IA e processa a resposta"""
+    
+    # Pegamos os dados do sistema para dar contexto à IA
+    agora = datetime.now()
+    data_hora_contexto = agora.strftime("%d/%m/%Y às %H:%M")
+    
+    try:
+        # Criamos um "System Prompt" dinâmico que informa a hora sem comandos IF
+        prompt = (
+            f"Contexto atual: Hoje é dia {data_hora_contexto}. "
+            f"Sua personalidade: Você é o Bob, um assistente virtual super parceiro sarcástico, inteligente, leal, estilo Jarvis. "
+            f"Responda de forma que compreende, curta, brincalhona com capacidade de reinterpretar situações de forma lúdica. "
+            f"Criatividade e Adaptação: Capacidade de mudar de perspectiva rapidamente e buscar soluções incomuns para problemas pensando fora da caixa {mensagem}"
+        )
+        
+        # Envia para a IA
+        response = chat.send_message(prompt)
+        resposta_texto = response.text
+        
+    except Exception as e:
+        resposta_texto = "Senhor, houve uma falha na conexão dos meus servidores neurais."
 
-    # Esta menssagem aparece somente quando o Bob e chamado
-    print ("Sistema Neurais v3.0 Online...")
-    print ("Salve chefe, o que manda??")
-    # A variavel 'comando'  guarda o comando que voce digita
-    # O .lower() deixa as letras minusculas 
-    while True:
-        comando = input ("\n Comando: ").lower()
+    # Gera a voz do Bob
+    audio_path = falar(resposta_texto)
+    
+    return resposta_texto, audio_path
 
-        # Comandos "locais" (que o bob faz sem precisar de internet)
-        if "horas" in comando:
-            agora = datetime.now()
-            hora_formatada = agora.strftime("%H:%M")
-            print (f"Bob: sao {hora_formatada}.")
+# --- INTERFACE GRADIO ---
+with gr.Blocks(title="BOB AI") as demo:
+    gr.Markdown("# 🤖 BOB AI - Protocolo Neural Ativo")
+    
+    with gr.Row():
+        with gr.Column():
+            chatbot = gr.Chatbot(label="Comunicação")
+            msg = gr.Textbox(label="Comando:", placeholder="Fale comigo, senhor...")
+            botao = gr.Button("Enviar")
+        
+        with gr.Column():
+            audio_player = gr.Audio(label="Voz do Bob", autoplay=True)
 
-        elif "desligar" in comando or "sair" in comando:
-            print ("Bob: Valeu, fui!")
-            break
+    def processar_interacao(mensagem, historico):
+        texto_resp, audio_resp = responder_bob(mensagem, historico)
+        historico.append((mensagem, texto_resp))
+        return historico, audio_resp, ""
 
-        # Comando de AI (Para tudo que ele nao souber responder localmente)
-        #Bob com Memoria
-        else:
-            try:
-                # O Bob envia sua pergunta para o Gemini
-                # Adicionamos uma instrucao para elesempre agir como o Bob
-                prompt_personalidade = f"(Voce é o Bob. Um assistente SUPER parceiro no estilo Jarvis que compreende e Responde de forma curta, brincalhona com capacidade de reinterpretar situações da vida de forma lúdica. Criatividade e Adaptação: Capacidade de mudar de perspectiva rapidamente e buscar soluções incomuns para problemas pensando fora da caixa.): {comando}"
-                # Usamos o chat.send_message em vez de model.generate_content
-                # Isso faz o google guarda o historico da conversa nesta sessao
-                resposta = chat.send_message(prompt_personalidade)
+    botao.click(processar_interacao, [msg, chatbot], [chatbot, audio_player, msg])
+    msg.submit(processar_interacao, [msg, chatbot], [chatbot, audio_player, msg])
 
-                print (f"Bob: {resposta.text}")
-            except Exception as e:
-                print ("Bob: Tive um pequeno problema de conexao")
-                print (f"ERRO: {e}")
-
-        # --- CEREBRO DO BOB --- 
-        # Aqui ele verifica e responde
-        # break acaba com o loop
-        if "ola" in comando or "oi" in comando:
-            print ("Bob: Eae tudo bem?")
-
-
-        elif "seu nome" in comando:
-            print ("Bob: Eu sou o Bob e estou em treinamento")
-
-
-        elif "data" in comando:
-            agora = datetime.now()
-            data_formatada = agora.strftime("%d/%m/%Y")
-            print (f"hoje e dia {data_formatada}.")
-
-
-        else:
-            # Se ele nao reconhecer o comando ele da uma resposta padrao
-            print ("Bob: Pode repetir chefe?")
-
-# Esse comando e oque faz para o Bob entender e processar
-iniciar_bob()
-
+if __name__ == "__main__":
+    demo.launch()
+       
