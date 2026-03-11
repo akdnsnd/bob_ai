@@ -1,145 +1,177 @@
-# --- Base Bob v7.0 ---
-
 import os
 import requests 
 import speech_recognition as sr
 import pygame
+import numpy as np
 from gtts import gTTS
 from datetime import datetime
 import threading
 import time
-import math # Importamos math para a pulsação suave
+import math
 
-# --- 1. CONFIGURAÇÃO DA INTELIGÊNCIA ---
-CHAVE_API = os.getenv("GEMINI_KEY")
-
-def consultar_gemini(texto):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_API}"
-    cabecalho = {'Content-Type': 'application/json'}
-    dados = {
-        "contents": [{
-            "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob. Responda curto: {texto}"}]
-        }]
-    }
-    try:
-        resposta = requests.post(url, headers=cabecalho, json=dados)
-        if resposta.status_code == 200:
-            resultado = resposta.json()
-            return resultado['candidates'][0]['content']['parts'][0]['text']
-        return "Erro na comunicação, senhor."
-    except:
-        return "Falha na conexão."
-
-# --- 2. CONFIGURAÇÕES VISUAIS (ATUALIZADO) ---
+# --- 1. CONFIGURAÇÕES TÉCNICAS E VISUAIS ---
+CHAVE_API = os.getenv("GEMINI_KEY") or "AIzaSyBUcMvSS_gXXe64z1IQ2BFQczdc8jL3JWc"
 LARGURA, ALTURA = 400, 400
-PRETO = (10, 10, 10)
-BRANCO = (255, 255, 255)
+FPS = 60
+
+# Cores do Humor
+PRETO      = (10, 10, 10)
+BRANCO     = (255, 255, 255)
 AZUL_SUAVE = (100, 150, 255)
+CINZA_IDLE = (180, 180, 180)
+BRILHO     = (40, 40, 40)
+VERDE_DICA = (50, 255, 50)
+VERMELHO_BRAVO = (255, 50, 50)
+AMARELO_HUMOR = (255, 255, 50)
 
 estado_bob = "IDLE"
-contador_respostas = 1
+cor_atual = CINZA_IDLE
 
-# --- 3. FUNÇÕES DE VOZ (MANTIDAS) ---
+# --- 2. SISTEMA DE SOM (BIPE) ---
+def tocar_bipe():
+    """Gera um bipe curto de ativação sem precisar de arquivo externo"""
+    frequencia = 880  # Nota Lá (A5)
+    duracao = 0.1     # Segundos
+    amostragem = 44100
+    n_amostras = int(duracao * amostragem)
+    
+    # Gera a onda senoidal
+    buf = np.sin(2 * np.pi * np.arange(n_amostras) * frequencia / amostragem).astype(np.float32)
+    sound = pygame.sndarray.make_sound((buf * 0.3 * 32767).astype(np.int16))
+    sound.play()
+
+# --- 3. CÉREBRO: CONEXÃO COM GEMINI ---
+def consultar_gemini(texto):
+    global cor_atual
+    # Usando o modelo estável para evitar erros de preview
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_API}"
+    cabecalho = {'Content-Type': 'application/json'}
+    
+    prompt_sistema = (
+        "Você é o Bob, assistente de São Paulo. Use gírias: mano, parça, chefe, cara. "
+        "Sua personalidade é instável: seja sarcástico, humorista ou bravo. "
+        "Sempre dê uma dica ou sugestão extra sobre o assunto. "
+        "Responda curto e termine com: [FELIZ], [BRAVO], [HUMOR] ou [DICA]."
+    )
+
+    dados = {"contents": [{"parts": [{"text": f"{prompt_sistema}\nUsuário: {texto}"}]}]}
+    
+    try:
+        resposta = requests.post(url, headers=cabecalho, json=dados, timeout=10)
+        if resposta.status_code == 200:
+            res_json = resposta.json()
+            texto_final = res_json['candidates'][0]['content']['parts'][0]['text']
+            
+            # Troca de cor por humor
+            if "[BRAVO]" in texto_final: cor_atual = VERMELHO_BRAVO
+            elif "[DICA]" in texto_final: cor_atual = VERDE_DICA
+            elif "[HUMOR]" in texto_final: cor_atual = AMARELO_HUMOR
+            else: cor_atual = BRANCO
+            
+            return texto_final.replace("[BRAVO]","").replace("[DICA]","").replace("[HUMOR]","").replace("[FELIZ]","")
+        return "Mano, o sistema deu teto preto aqui. Tenta de novo, parça."
+    except:
+        return "Tô sem sinal, chefe. A fita tá louca."
+
+# --- 4. VOZ ---
 def falar(texto):
     global estado_bob
-    global contador_respostas
-
+    arquivo_nome = "temp_voz.mp3"
     try:
-        print(f"Bob: {texto}")
-
         tts = gTTS(text=texto, lang='pt', slow=False)
-
-        arquivo = f"{contador_respostas}.mp3"
-        contador_respostas += 1
-
-        tts.save(arquivo)
-
-        pygame.mixer.music.load(arquivo)
+        tts.save(arquivo_nome)
+        pygame.mixer.music.load(arquivo_nome)
         estado_bob = "FALANDO"
         pygame.mixer.music.play()
-        
-        while pygame.mixer.music.get_busy():
-            time.sleep(0.05)
-        
+        while pygame.mixer.music.get_busy(): time.sleep(0.1)
+        pygame.mixer.music.unload() 
         estado_bob = "IDLE"
-    
-    except Exception as e:
-        print(f"Erro: {e}")
+        if os.path.exists(arquivo_nome): os.remove(arquivo_nome)
+    except:
         estado_bob = "IDLE"
 
+# --- 5. AUDIÇÃO: MOTOR DA MENTE ---
 def motor_da_mente():
-    global estado_bob
+    global estado_bob, cor_atual
     reconhecedor = sr.Recognizer()
+    
+    # Configuração de alta sensibilidade e resposta rápida
+    reconhecedor.energy_threshold = 100 
+    reconhecedor.dynamic_energy_threshold = False
+    reconhecedor.pause_threshold = 0.5
+    
     with sr.Microphone() as source:
-        reconhecedor.adjust_for_ambient_noise(source, duration=1)
+        print("Bob v8.2 na escuta, parça!")
+        
         while True:
             try:
-                audio = reconhecedor.listen(source, phrase_time_limit=3)
+                audio = reconhecedor.listen(source, phrase_time_limit=8)
                 fala = reconhecedor.recognize_google(audio, language='pt-BR').lower()
+                
                 if "bob" in fala:
-                    estado_bob = "OUVINDO"
-                    falar("Sim?")
-                    audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
-                    texto_comando = reconhecedor.recognize_google(audio_comando, language='pt-BR')
-                    estado_bob = "PROCESSANDO"
-                    falar(consultar_gemini(texto_comando))
-            except:
-                pass
+                    tocar_bipe() # Som de ativação
+                    
+                    comando = fala.replace("bob", "", 1).strip()
+                    if len(comando) > 2:
+                        estado_bob = "PROCESSANDO"
+                        falar(consultar_gemini(comando))
+                    else:
+                        estado_bob = "OUVINDO"
+                        cor_atual = AZUL_SUAVE
+                        audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
+                        texto_c = reconhecedor.recognize_google(audio_comando, language='pt-BR')
+                        estado_bob = "PROCESSANDO"
+                        falar(consultar_gemini(texto_c))
+            except (sr.UnknownValueError, sr.WaitTimeoutError):
+                estado_bob = "IDLE"
+                cor_atual = CINZA_IDLE
+                continue
+            except Exception as e:
+                print(f"Erro: {e}")
+                time.sleep(1)
 
-# --- 4. INTERFACE GRÁFICA: A BOLA PULSANTE ---
+# --- 6. INTERFACE ---
 def desenhar_bob(screen):
     screen.fill(PRETO)
     centro = (LARGURA // 2, ALTURA // 2)
-    tempo_atual = time.time()
-    
-    # Configuração da pulsação base (Respiração lenta)
+    t = time.time()
     raio_base = 80
-    pulsacao_suave = math.sin(tempo_atual * 3) * 5 
     
     if estado_bob == "FALANDO":
-        # Pulsação forte e rápida enquanto fala
-        variacao = math.sin(tempo_atual * 20) * 25
-        cor = BRANCO
-        raio_final = raio_base + 20 + variacao
+        raio = raio_base + 20 + (math.sin(t * 20) * 25)
+        cor = cor_atual
     elif estado_bob == "OUVINDO":
-        # Fica num tom azulado e vibra levemente
+        raio = raio_base + (math.sin(t * 15) * 10)
         cor = AZUL_SUAVE
-        raio_final = raio_base + math.sin(tempo_atual * 15) * 8
     elif estado_bob == "PROCESSANDO":
-        # Pulsa como um batimento cardíaco
+        raio = raio_base + (math.sin(t * 10) * 15)
         cor = BRANCO
-        raio_final = raio_base + (math.sin(tempo_atual * 10) * 15)
-    else:
-        # Modo IDLE: Apenas "respirando"
-        cor = (200, 200, 200) # Cinza claro
-        raio_final = raio_base + pulsacao_suave
+    else: 
+        raio = raio_base + (math.sin(t * 3) * 5)
+        cor = CINZA_IDLE
 
-    # Desenha o brilho (opcional - várias camadas dão efeito de luz)
-    for i in range(3):
-        alpha_raio = int(raio_final + (i * 10))
-        pygame.draw.circle(screen, (50, 50, 50), centro, alpha_raio, 1)
+    for i in range(1, 4):
+        pygame.draw.circle(screen, BRILHO, centro, int(raio + (i * 8)), 1)
+    pygame.draw.circle(screen, cor, centro, int(raio))
 
-    # Desenha a bola principal
-    pygame.draw.circle(screen, cor, centro, int(raio_final))
+# --- 7. EXECUÇÃO ---
+if __name__ == "__main__":
+    pygame.init()
+    pygame.mixer.init()
+    # Necessário para gerar sons via numpy
+    pygame.mixer.set_num_channels(8)
+    
+    tela = pygame.display.set_mode((LARGURA, ALTURA))
+    pygame.display.set_caption("BOB v8.2 - Beep Edition")
 
-# --- 5. EXECUÇÃO ---
-pygame.init()
-pygame.mixer.init()
-tela = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("BOB - Interface Esférica")
+    threading.Thread(target=motor_da_mente, daemon=True).start()
 
-threading.Thread(target=motor_da_mente, daemon=True).start()
-
-rodando = True
-relogio = pygame.time.Clock()
-
-while rodando:
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            rodando = False
-
-    desenhar_bob(tela)
-    pygame.display.flip()
-    relogio.tick(60)
-
-pygame.quit()
+    relogio = pygame.time.Clock()
+    rodando = True
+    while rodando:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT: rodando = False
+        desenhar_bob(tela)
+        pygame.display.flip()
+        relogio.tick(FPS)
+    pygame.quit()
