@@ -1,4 +1,4 @@
-# --- Base Bob AI v6.0 ---
+# --- Base Bob v7.0 ---
 
 import os
 import requests 
@@ -8,12 +8,12 @@ from gtts import gTTS
 from datetime import datetime
 import threading
 import time
+import math # Importamos math para a pulsação suave
 
-# --- 1. CONFIGURAÇÃO DA INTELIGÊNCIA (MODO DIRETO / REST API) ---
+# --- 1. CONFIGURAÇÃO DA INTELIGÊNCIA ---
 CHAVE_API = os.getenv("GEMINI_KEY")
 
 def consultar_gemini(texto):
-    """Faz o pedido diretamente à internet, ignorando bibliotecas velhas"""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_API}"
     cabecalho = {'Content-Type': 'application/json'}
     dados = {
@@ -21,29 +21,25 @@ def consultar_gemini(texto):
             "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob. Responda curto: {texto}"}]
         }]
     }
-    
     try:
         resposta = requests.post(url, headers=cabecalho, json=dados)
         if resposta.status_code == 200:
             resultado = resposta.json()
             return resultado['candidates'][0]['content']['parts'][0]['text']
-        else:
-            print(f"Erro da API: {resposta.text}")
-            return "Senhor, houve um erro na minha comunicação central."
-    except Exception as e:
-        print(f"Erro de conexão: {e}")
-        return "Senhor, os meus cabos de internet falharam."
+        return "Erro na comunicação, senhor."
+    except:
+        return "Falha na conexão."
 
-# --- 2. CONFIGURAÇÕES VISUAIS ---
+# --- 2. CONFIGURAÇÕES VISUAIS (ATUALIZADO) ---
 LARGURA, ALTURA = 400, 400
-PRETO = (15, 15, 15)
-AZUL_JARVIS = (0, 200, 255)
-VERMELHO_ALERTA = (255, 50, 50)
+PRETO = (10, 10, 10)
+BRANCO = (255, 255, 255)
+AZUL_SUAVE = (100, 150, 255)
 
 estado_bob = "IDLE"
 contador_respostas = 1
 
-# --- 3. FUNÇÕES DE VOZ E LÓGICA ---
+# --- 3. FUNÇÕES DE VOZ (MANTIDAS) ---
 def falar(texto):
     global estado_bob
     global contador_respostas
@@ -57,94 +53,80 @@ def falar(texto):
         contador_respostas += 1
 
         tts.save(arquivo)
-        
+
         pygame.mixer.music.load(arquivo)
         estado_bob = "FALANDO"
         pygame.mixer.music.play()
         
         while pygame.mixer.music.get_busy():
-            time.sleep(0.1)
+            time.sleep(0.05)
+        
         estado_bob = "IDLE"
+    
     except Exception as e:
-        print(f"Erro no áudio: {e}")
+        print(f"Erro: {e}")
         estado_bob = "IDLE"
 
 def motor_da_mente():
     global estado_bob
     reconhecedor = sr.Recognizer()
-    
     with sr.Microphone() as source:
         reconhecedor.adjust_for_ambient_noise(source, duration=1)
-        print("SISTEMAS CARREGADOS...")
-        
         while True:
             try:
                 audio = reconhecedor.listen(source, phrase_time_limit=3)
                 fala = reconhecedor.recognize_google(audio, language='pt-BR').lower()
-                
                 if "bob" in fala:
                     estado_bob = "OUVINDO"
-                    falar("Sim, senhor?")
-                    print("Ouvindo...")
-                
-            
-
+                    falar("Sim?")
                     audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
                     texto_comando = reconhecedor.recognize_google(audio_comando, language='pt-BR')
-
-                    print(f"Você disse: {texto_comando}")
-                    
                     estado_bob = "PROCESSANDO"
-                    
-                    # Usa a nossa nova função direta
-                    resposta_texto = consultar_gemini(texto_comando) 
-                    
-                    falar(resposta_texto)
-                    
-            except sr.WaitTimeoutError:
+                    falar(consultar_gemini(texto_comando))
+            except:
                 pass
-            except sr.UnknownValueError:
-                pass
-            except Exception as e:
-                estado_bob = "IDLE"
-                time.sleep(1)
 
-# --- 4. INTERFACE GRÁFICA (ROSTO) ---
+# --- 4. INTERFACE GRÁFICA: A BOLA PULSANTE ---
 def desenhar_bob(screen):
     screen.fill(PRETO)
     centro = (LARGURA // 2, ALTURA // 2)
+    tempo_atual = time.time()
     
-    raio_base = 140
-    if estado_bob == "PROCESSANDO":
-        raio_base += int(5 * (time.time() % 1 * 2))
-        cor = VERMELHO_ALERTA
-    elif estado_bob == "OUVINDO":
-        cor = (255, 255, 255)
-    else:
-        cor = AZUL_JARVIS
-
-    pygame.draw.circle(screen, cor, centro, raio_base, 2)
-    pygame.draw.circle(screen, cor, centro, raio_base - 10, 1)
-
-    olho_y = centro[1] - 30
-    if estado_bob == "OUVINDO":
-        pygame.draw.circle(screen, cor, (centro[0]-50, olho_y), 12)
-        pygame.draw.circle(screen, cor, (centro[0]+50, olho_y), 12)
-    else:
-        pygame.draw.rect(screen, cor, (centro[0]-60, olho_y, 20, 5))
-        pygame.draw.rect(screen, cor, (centro[0]+40, olho_y, 20, 5))
-
+    # Configuração da pulsação base (Respiração lenta)
+    raio_base = 80
+    pulsacao_suave = math.sin(tempo_atual * 3) * 5 
+    
     if estado_bob == "FALANDO":
-        altura_boca = int(10 + abs(30 * (time.time() % 0.4 - 0.2) * 5))
-        pygame.draw.ellipse(screen, cor, (centro[0]-30, centro[1]+40, 60, altura_boca), 2)
+        # Pulsação forte e rápida enquanto fala
+        variacao = math.sin(tempo_atual * 20) * 25
+        cor = BRANCO
+        raio_final = raio_base + 20 + variacao
+    elif estado_bob == "OUVINDO":
+        # Fica num tom azulado e vibra levemente
+        cor = AZUL_SUAVE
+        raio_final = raio_base + math.sin(tempo_atual * 15) * 8
+    elif estado_bob == "PROCESSANDO":
+        # Pulsa como um batimento cardíaco
+        cor = BRANCO
+        raio_final = raio_base + (math.sin(tempo_atual * 10) * 15)
     else:
-        pygame.draw.line(screen, cor, (centro[0]-20, centro[1]+60), (centro[0]+20, centro[1]+60), 2)
+        # Modo IDLE: Apenas "respirando"
+        cor = (200, 200, 200) # Cinza claro
+        raio_final = raio_base + pulsacao_suave
+
+    # Desenha o brilho (opcional - várias camadas dão efeito de luz)
+    for i in range(3):
+        alpha_raio = int(raio_final + (i * 10))
+        pygame.draw.circle(screen, (50, 50, 50), centro, alpha_raio, 1)
+
+    # Desenha a bola principal
+    pygame.draw.circle(screen, cor, centro, int(raio_final))
 
 # --- 5. EXECUÇÃO ---
 pygame.init()
 pygame.mixer.init()
 tela = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("Base Bob AI v6.0")
+pygame.display.set_caption("BOB - Interface Esférica")
 
 threading.Thread(target=motor_da_mente, daemon=True).start()
 
