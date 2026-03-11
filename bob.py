@@ -1,5 +1,7 @@
+# --- Base Bob AI v6.0 ---
+
 import os
-import requests # A nossa nova forma de falar com o Gemini
+import requests 
 import speech_recognition as sr
 import pygame
 from gtts import gTTS
@@ -16,7 +18,7 @@ def consultar_gemini(texto):
     cabecalho = {'Content-Type': 'application/json'}
     dados = {
         "contents": [{
-            "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob/Jarvis. Responda curto: {texto}"}]
+            "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob. Responda curto: {texto}"}]
         }]
     }
     
@@ -39,14 +41,21 @@ AZUL_JARVIS = (0, 200, 255)
 VERMELHO_ALERTA = (255, 50, 50)
 
 estado_bob = "IDLE"
+contador_respostas = 1
 
 # --- 3. FUNÇÕES DE VOZ E LÓGICA ---
 def falar(texto):
     global estado_bob
+    global contador_respostas
+
     try:
-        print(f"Bob responde: {texto}")
+        print(f"Bob: {texto}")
+
         tts = gTTS(text=texto, lang='pt', slow=False)
-        arquivo = "vozinha.mp3"
+
+        arquivo = f"{contador_respostas}.mp3"
+        contador_respostas += 1
+
         tts.save(arquivo)
         
         pygame.mixer.music.load(arquivo)
@@ -66,7 +75,7 @@ def motor_da_mente():
     
     with sr.Microphone() as source:
         reconhecedor.adjust_for_ambient_noise(source, duration=1)
-        print("Bob Inicializado no Windows 7. Aguardando a Wake Word 'Bob'...")
+        print("SISTEMAS CARREGADOS...")
         
         while True:
             try:
@@ -76,10 +85,13 @@ def motor_da_mente():
                 if "bob" in fala:
                     estado_bob = "OUVINDO"
                     falar("Sim, senhor?")
-                    
-                    print("Ouvindo comando...")
+                    print("Ouvindo...")
+                
+            
+
                     audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
                     texto_comando = reconhecedor.recognize_google(audio_comando, language='pt-BR')
+
                     print(f"Você disse: {texto_comando}")
                     
                     estado_bob = "PROCESSANDO"
@@ -132,7 +144,7 @@ def desenhar_bob(screen):
 pygame.init()
 pygame.mixer.init()
 tela = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("BOB OS v5.1 - Win7 Edition")
+pygame.display.set_caption("Base Bob AI v6.0")
 
 threading.Thread(target=motor_da_mente, daemon=True).start()
 
