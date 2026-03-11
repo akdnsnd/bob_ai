@@ -1,6 +1,3 @@
-# --- Bob AI v6.5 ---
-# Novo modelo que comunicação, apenas por voz
-
 import os
 import requests # A nossa nova forma de falar com o Gemini
 import speech_recognition as sr
@@ -19,7 +16,7 @@ def consultar_gemini(texto):
     cabecalho = {'Content-Type': 'application/json'}
     dados = {
         "contents": [{
-            "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob. Responda curto: {texto}"}]
+            "parts": [{"text": f"Contexto: {datetime.now()}. Você é o Bob/Jarvis. Responda curto: {texto}"}]
         }]
     }
     
@@ -47,9 +44,9 @@ estado_bob = "IDLE"
 def falar(texto):
     global estado_bob
     try:
-        print(f"Bob: {texto}")
+        print(f"Bob responde: {texto}")
         tts = gTTS(text=texto, lang='pt', slow=False)
-        arquivo = "bem_vindas.mp3"
+        arquivo = "vozinha.mp3"
         tts.save(arquivo)
         
         pygame.mixer.music.load(arquivo)
@@ -69,7 +66,7 @@ def motor_da_mente():
     
     with sr.Microphone() as source:
         reconhecedor.adjust_for_ambient_noise(source, duration=1)
-        print("SISTEMAS CARREGANDO...")
+        print("Bob Inicializado no Windows 7. Aguardando a Wake Word 'Bob'...")
         
         while True:
             try:
@@ -77,20 +74,21 @@ def motor_da_mente():
                 fala = reconhecedor.recognize_google(audio, language='pt-BR').lower()
                 
                 if "bob" in fala:
-                    # Usa a nossa nova função direta
-                    resposta_texto = consultar_gemini(texto_comando) 
-                    print("--ESCUTEI--")
                     estado_bob = "OUVINDO"
-                    falar(resposta_texto)
+                    falar("Sim, senhor?")
                     
-                    print("Ouvindo...")
+                    print("Ouvindo comando...")
                     audio_comando = reconhecedor.listen(source, timeout=5, phrase_time_limit=8)
                     texto_comando = reconhecedor.recognize_google(audio_comando, language='pt-BR')
                     print(f"Você disse: {texto_comando}")
                     
                     estado_bob = "PROCESSANDO"
                     
-                       
+                    # Usa a nossa nova função direta
+                    resposta_texto = consultar_gemini(texto_comando) 
+                    
+                    falar(resposta_texto)
+                    
             except sr.WaitTimeoutError:
                 pass
             except sr.UnknownValueError:
@@ -134,7 +132,7 @@ def desenhar_bob(screen):
 pygame.init()
 pygame.mixer.init()
 tela = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("Bob AI v6.0")
+pygame.display.set_caption("BOB OS v5.1 - Win7 Edition")
 
 threading.Thread(target=motor_da_mente, daemon=True).start()
 
