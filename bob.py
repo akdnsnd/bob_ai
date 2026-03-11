@@ -1,5 +1,5 @@
-# --- BOB AI v3.1 ---
-# Totalmente integrado à IA (Sem comandos locais)
+# --- BOB AI v4.0 ---
+# Agora com Audição (Microfone) e Inteligência Pura
 
 import google.generativeai as genai
 import os
@@ -12,66 +12,61 @@ CHAVE_API = os.getenv("GEMINI_KEY")
 if CHAVE_API:
     genai.configure(api_key=CHAVE_API)
 
-# Inicializando o modelo
 model = genai.GenerativeModel('gemini-3-flash-preview')
 chat = model.start_chat(history=[])
 
 def falar(texto):
-    """Gera o arquivo de áudio da resposta"""
+    """Gera o áudio da resposta"""
     tts = gTTS(text=texto, lang='pt', slow=False)
     arquivo_audio = "resposta_bob.mp3"
     tts.save(arquivo_audio)
     return arquivo_audio
 
-def responder_bob(mensagem, historico):
-    """Envia tudo para a IA e processa a resposta"""
+def processar_tudo(audio_path, texto_input):
+    """Lida com entrada de áudio OU texto e retorna resposta + voz"""
     
-    # Pegamos os dados do sistema para dar contexto à IA
-    agora = datetime.now()
-    data_hora_contexto = agora.strftime("%d/%m/%Y às %H:%M")
-    
+    # Se houver áudio, enviamos o arquivo para o Gemini transcrever e responder
+    # Se não, usamos o texto digitado
+    if audio_path:
+        # O Gemini 3 consegue "ouvir" arquivos de áudio diretamente!
+        audio_file = genai.upload_file(path=audio_path)
+        prompt = [
+            f"Contexto: Hoje é {datetime.now().strftime('%d/%m/%Y %H:%M')}. Você é o Bob, assistente estilo Jarvis.",
+            "O áudio anexo é o meu comando. Responda de forma curta e direta.",
+            audio_file
+        ]
+    else:
+        prompt = f"Contexto: {datetime.now().strftime('%d/%m/%Y %H:%M')}. Você é o Bob. Responda: {texto_input}"
+
     try:
-        # Criamos um "System Prompt" dinâmico que informa a hora sem comandos IF
-        prompt = (
-            f"Contexto atual: Hoje é dia {data_hora_contexto}. "
-            f"Sua personalidade: Você é o Bob, um assistente virtual super parceiro sarcástico, inteligente, leal, estilo Jarvis. "
-            f"Responda de forma que compreende, curta, brincalhona com capacidade de reinterpretar situações de forma lúdica. "
-            f"Criatividade e Adaptação: Capacidade de mudar de perspectiva rapidamente e buscar soluções incomuns para problemas pensando fora da caixa {mensagem}"
-        )
-        
-        # Envia para a IA
         response = chat.send_message(prompt)
         resposta_texto = response.text
-        
     except Exception as e:
-        resposta_texto = "Senhor, houve uma falha na conexão dos meus servidores neurais."
+        resposta_texto = "Senhor, tive um erro nos meus sensores auditivos."
 
-    # Gera a voz do Bob
-    audio_path = falar(resposta_texto)
-    
-    return resposta_texto, audio_path
+    audio_res = falar(resposta_texto)
+    return resposta_texto, audio_res
 
 # --- INTERFACE GRADIO ---
-with gr.Blocks(title="BOB AI") as demo:
-    gr.Markdown("# 🤖 BOB AI - Protocolo Neural Ativo")
+with gr.Blocks(title="BOB AI - Protocolo de Voz") as demo:
+    gr.Markdown("# 🎙️ BOB AI - Interface de Voz Ativa")
     
     with gr.Row():
         with gr.Column():
-            chatbot = gr.Chatbot(label="Comunicação")
-            msg = gr.Textbox(label="Comando:", placeholder="Fale comigo, senhor...")
-            botao = gr.Button("Enviar")
+            output_text = gr.Textbox(label="Bob diz:")
+            audio_output = gr.Audio(label="Voz do Bob", autoplay=True)
         
         with gr.Column():
-            audio_player = gr.Audio(label="Voz do Bob", autoplay=True)
+            input_audio = gr.Audio(label="Fale com o Bob (Clique no microfone)", sources=["microphone"], type="filepath")
+            input_text = gr.Textbox(label="Ou digite aqui:")
+            btn = gr.Button("Enviar ao Bob")
 
-    def processar_interacao(mensagem, historico):
-        texto_resp, audio_resp = responder_bob(mensagem, historico)
-        historico.append((mensagem, texto_resp))
-        return historico, audio_resp, ""
-
-    botao.click(processar_interacao, [msg, chatbot], [chatbot, audio_player, msg])
-    msg.submit(processar_interacao, [msg, chatbot], [chatbot, audio_player, msg])
+    # Ação do botão
+    btn.click(
+        fn=processar_tudo, 
+        inputs=[input_audio, input_text], 
+        outputs=[output_text, audio_output]
+    )
 
 if __name__ == "__main__":
-    demo.launch()
-       
+    demo.launch(debug=True)
