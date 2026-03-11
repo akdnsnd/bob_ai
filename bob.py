@@ -79,7 +79,7 @@ def motor_da_mente():
                 if "bob" in fala:
                     # Usa a nossa nova função direta
                     resposta_texto = consultar_gemini(texto_comando) 
-                    
+                    print("--ESCUTEI--")
                     estado_bob = "OUVINDO"
                     falar(resposta_texto)
                     
